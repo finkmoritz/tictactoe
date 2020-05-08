@@ -11,7 +11,7 @@ import {
 } from '@ionic/react';
 import React from 'react';
 
-const NewItem: React.FC = () => {
+const Play: React.FC = () => {
     return (
         <IonPage>
             <IonHeader>
@@ -19,12 +19,12 @@ const NewItem: React.FC = () => {
                     <IonButtons slot="start">
                         <IonBackButton defaultHref="/home" />
                     </IonButtons>
-                    <IonTitle>New Item</IonTitle>
+                    <IonTitle>Play</IonTitle>
                 </IonToolbar>
             </IonHeader>
             <IonContent></IonContent>
         </IonPage>
     );
 };
-export default NewItem;
+export default Play;
 

@@ -1,18 +1,13 @@
 import {
-    IonBadge,
-    IonCheckbox,
-    IonContent, IonFab, IonFabButton,
-    IonHeader, IonIcon,
-    IonItem,
-    IonLabel,
-    IonList, IonNote,
+    IonButton,
+    IonContent,
+    IonHeader,
     IonPage,
     IonTitle,
     IonToolbar
 } from '@ionic/react';
 import React from 'react';
 import './Home.css';
-import {add} from "ionicons/icons";
 import {RouteComponentProps} from "react-router";
 
 const Home: React.FC<RouteComponentProps> = (props) => {
@@ -20,27 +15,11 @@ const Home: React.FC<RouteComponentProps> = (props) => {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Blank</IonTitle>
+          <IonTitle>Tic Tac Toe</IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent>
-          <IonList>
-              <IonItem>
-                  <IonCheckbox slot="start" />
-                  <IonLabel>
-                      <h1>Create Idea</h1>
-                      <IonNote>Run Idea by Brandy</IonNote>
-                  </IonLabel>
-                  <IonBadge color="success" slot="end">
-                      5 Days
-                  </IonBadge>
-              </IonItem>
-          </IonList>
-          <IonFab vertical="bottom" horizontal="end" slot="fixed">
-              <IonFabButton onClick={() => props.history.push('/New')}>
-                  <IonIcon icon={add} />
-              </IonFabButton>
-          </IonFab>
+      <IonContent class="ion-text-center">
+          <IonButton color="primary" onClick={() => props.history.push('/play')}>Play</IonButton>
       </IonContent>
     </IonPage>
   );
