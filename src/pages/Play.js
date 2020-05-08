@@ -10,6 +10,15 @@ import {
 import React from 'react';
 import * as THREE from 'three';
 import color from "../util/color";
+import { Client } from "boardgame.io/react";
+import TicTacToe from "../game/game";
+import Board from "../game/board";
+
+
+const TicTacToeApp = Client({
+    game: TicTacToe,
+    board: Board
+});
 
 const Play = () => {
     useIonViewDidEnter(() => {
@@ -52,7 +61,7 @@ const Play = () => {
                     <IonTitle>Play</IonTitle>
                 </IonToolbar>
             </IonHeader>
-            <IonContent id="webGLView"></IonContent>
+            <IonContent id="webGLView"><TicTacToeApp/></IonContent>
         </IonPage>
     );
 };
