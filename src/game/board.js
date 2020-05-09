@@ -9,8 +9,15 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import './board.css';
+import * as THREE from "three";
+import color from "../util/color";
 
 class Board extends React.Component {
+    constructor(props) {
+        super(props);
+        this.spheres = [];
+    }
+
     static propTypes = {
         G: PropTypes.any.isRequired,
         ctx: PropTypes.any.isRequired,
@@ -32,8 +39,66 @@ class Board extends React.Component {
         return true;
     }
 
+    componentDidMount() {
+        const size = 0.4*window.innerWidth;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+
+        renderer.setSize(size, size);
+        document.getElementById("webGLView"+this.props.playerID).appendChild(renderer.domElement);
+
+        const gridHelper = new THREE.GridHelper(3, 3);
+        gridHelper.geometry.rotateX(0.5*Math.PI);
+        scene.add( gridHelper );
+
+        for(let y=-1; y<2; y++) {
+            for(let x=-1; x<2; x++) {
+                const sphere = this.createSphere(x, y, color.gray);
+                this.spheres.push(sphere);
+                scene.add(sphere);
+            }
+        }
+        this.spheres[0].material.color.setHex(color.red);
+
+        camera.position.z = 5;
+
+        const ambientLight = new THREE.AmbientLight(color.gray);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(color.white, 0.5);
+        scene.add(directionalLight);
+
+        const animate = () => {
+            requestAnimationFrame(animate);
+            for(let i=0; i<this.spheres.length; i++) {
+                switch (this.props.G.cells[i]) {
+                    case '0':
+                        this.spheres[i].material.color.setHex(color.red);
+                        break;
+                    case '1':
+                        this.spheres[i].material.color.setHex(color.blue);
+                        break;
+                    default: this.spheres[i].material.color.setHex(color.gray);
+                }
+            }
+            renderer.render(scene, camera);
+        }
+        animate();
+    };
+
+    createSphere(x, y, color) {
+        const geometry = new THREE.SphereBufferGeometry(0.4, 32, 32);
+        const material = new THREE.MeshBasicMaterial({color: color});
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.translateX(x);
+        sphere.translateY(y);
+        return sphere;
+    }
+
     render() {
-        let tbody = [];
+        /*let tbody = [];
         for (let i = 0; i < 3; i++) {
             let cells = [];
             for (let j = 0; j < 3; j++) {
@@ -49,7 +114,7 @@ class Board extends React.Component {
                 );
             }
             tbody.push(<tr key={i}>{cells}</tr>);
-        }
+        }*/
 
         let winner = null;
         if (this.props.ctx.gameover) {
@@ -62,12 +127,7 @@ class Board extends React.Component {
         }
 
         return (
-            <div>
-                <table id="board">
-                    <tbody>{tbody}</tbody>
-                </table>
-                {winner}
-            </div>
+            <div id={"webGLView"+this.props.playerID}/>
         );
     }
 }
