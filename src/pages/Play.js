@@ -1,9 +1,9 @@
 import {
     IonBackButton,
-    IonButtons,
-    IonContent,
+    IonButtons, IonCol,
+    IonContent, IonGrid,
     IonHeader,
-    IonPage,
+    IonPage, IonRow,
     IonTitle,
     IonToolbar, useIonViewDidEnter
 } from '@ionic/react';
@@ -11,13 +11,15 @@ import React from 'react';
 import * as THREE from 'three';
 import color from "../util/color";
 import { Client } from "boardgame.io/react";
+import { Local } from 'boardgame.io/multiplayer';
 import TicTacToe from "../game/game";
 import Board from "../game/board";
 
-
 const TicTacToeApp = Client({
     game: TicTacToe,
-    board: Board
+    board: Board,
+    multiplayer: Local(),
+    debug: false
 });
 
 const Play = () => {
@@ -61,7 +63,18 @@ const Play = () => {
                     <IonTitle>Play</IonTitle>
                 </IonToolbar>
             </IonHeader>
-            <IonContent id="webGLView"><TicTacToeApp/></IonContent>
+            <IonContent id="webGLView">
+                <IonGrid>
+                    <IonRow>
+                        <IonCol>
+                            <TicTacToeApp playerID="0"/>
+                        </IonCol>
+                        <IonCol>
+                            <TicTacToeApp playerID="1"/>
+                        </IonCol>
+                    </IonRow>
+                </IonGrid>
+            </IonContent>
         </IonPage>
     );
 };
