@@ -18,8 +18,10 @@ class Board extends React.Component {
         this.spheres = [];
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2(Number.MAX_VALUE, Number.MAX_VALUE);
-        this.renderer = null;
+        this.intersectedObject = null;
+        this.scene = null;
         this.camera = null;
+        this.renderer = null;
         this.state = { width: 0.5*window.innerWidth, height: 0.5*window.innerWidth };
     }
 
@@ -45,106 +47,66 @@ class Board extends React.Component {
     }
 
     componentDidMount() {
-        this.renderer = new THREE.WebGLRenderer();
+        this.addResizeListener();
+        this.addOnClickListeners();
 
-        const updateDimensions = () => {
-            const width = 0.5*window.innerWidth;
-            const height = 0.5*window.innerWidth;
-            this.renderer.setSize(width, height);
-            this.setState({ width: width, height: height });
-        };
-        window.addEventListener('resize', updateDimensions);
+        this.addScene();
+        this.addCamera();
+        this.addRenderer();
 
-        const scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(50, this.state.width/this.state.height, 0.1, 1000);
-        this.camera.position.z = 5;
-
-        this.renderer.setSize(this.state.width, this.state.height);
-        document.getElementById("webGLView"+this.props.playerID).appendChild(this.renderer.domElement);
-
-        const gridHelper = new THREE.GridHelper(3, 3);
-        gridHelper.geometry.rotateX(0.5*Math.PI);
-        scene.add( gridHelper );
-
-        let sphereId = 0;
-        for(let y=1; y>-2; y--) {
-            for(let x=-1; x<2; x++) {
-                const sphere = this.createSphere(sphereId++, x, y, color.gray);
-                this.spheres.push(sphere);
-                scene.add(sphere);
-            }
-        }
-        this.spheres[0].material.color.setHex(color.red);
-
-        const ambientLight = new THREE.AmbientLight(color.gray);
-        scene.add(ambientLight);
-
-        const directionalLight = new THREE.DirectionalLight(color.white, 0.5);
-        scene.add(directionalLight);
-
-        const onClick = ( event ) => {
-            event.preventDefault();
-            if(event.clientX < this.state.width && event.clientY < this.state.height && this.props.playerID === '0') {
-                this.mouse.x = ( event.clientX / this.state.width ) * 2 - 1;
-                this.mouse.y = - ( event.clientY / this.state.height ) * 2 + 1;
-            } else if(event.clientX >= this.state.width && event.clientY < this.state.height && this.props.playerID === '1') {
-                this.mouse.x = ( (event.clientX-this.state.width) / this.state.width ) * 2 - 1;
-                this.mouse.y = - ( event.clientY / this.state.height ) * 2 + 1;
-            } else {
-                this.mouse.x = Number.MAX_VALUE;
-                this.mouse.y = Number.MAX_VALUE;
-            }
-        };
-        document.addEventListener( 'mousedown', onClick, false );
-        document.addEventListener( 'touchstart', onClick, false );
-
-        let INTERSECTED = null;
+        this.addGrid();
+        this.addSpheres();
+        this.addLights();
 
         const animate = () => {
             requestAnimationFrame(animate);
 
-            this.raycaster.setFromCamera( this.mouse, this.camera );
-            const intersects = this.raycaster.intersectObjects( scene.children );
-            if ( intersects.length > 0 ) {
-                if ( INTERSECTED !== intersects[ 0 ].object ) {
-                    this.resetPreviousIntersected(INTERSECTED);
-                    INTERSECTED = intersects[ 0 ].object;
-                    if(this.isSphere(INTERSECTED)) {
-                        if (this.isActive(INTERSECTED.sphereId)) {
-                            this.props.moves.clickCell(INTERSECTED.sphereId);
-                        }
-                    }
-                    INTERSECTED.currentHex = INTERSECTED.material.color.getHex();
-                }
-            } else {
-                this.resetPreviousIntersected(INTERSECTED);
-                INTERSECTED = null;
-            }
+            this.selectIntersected();
+            this.drawSpheres();
 
-            for(let i=0; i<this.spheres.length; i++) {
-                switch (this.props.G.cells[i]) {
-                    case '0':
-                        this.spheres[i].visible = true;
-                        this.spheres[i].material.color.setHex(color.red);
-                        break;
-                    case '1':
-                        this.spheres[i].visible = true;
-                        this.spheres[i].material.color.setHex(color.blue);
-                        break;
-                    default: this.spheres[i].visible = false;
-                }
-            }
+            /*let winner = null;
+            if (this.props.ctx.gameover) {
+                winner =
+                    this.props.ctx.gameover.winner !== undefined ? (
+                        <div id="winner">Winner: {this.props.ctx.gameover.winner}</div>
+                    ) : (
+                        <div id="winner">Draw!</div>
+                    );
+            }*/
 
-            this.renderer.render(scene, this.camera);
+            this.renderer.render(this.scene, this.camera);
         }
         animate();
     };
 
-    resetPreviousIntersected(INTERSECTED) {
-        if (INTERSECTED) {
-            INTERSECTED.material.color.setHex(INTERSECTED.currentHex);
-            if (this.isSphere(INTERSECTED)) {
-                INTERSECTED.visible = false;
+    addScene() {
+        this.scene = new THREE.Scene();
+    }
+
+    addCamera() {
+        this.camera = new THREE.PerspectiveCamera(50, this.state.width / this.state.height, 0.1, 1000);
+        this.camera.position.z = 5;
+    }
+
+    addRenderer() {
+        this.renderer = new THREE.WebGLRenderer();
+        this.renderer.setSize(this.state.width, this.state.height);
+        document.getElementById("webGLView" + this.props.playerID).appendChild(this.renderer.domElement);
+    }
+
+    addGrid() {
+        const gridHelper = new THREE.GridHelper(3, 3);
+        gridHelper.geometry.rotateX(0.5 * Math.PI);
+        this.scene.add(gridHelper);
+    }
+
+    addSpheres() {
+        let sphereId = 0;
+        for (let y = 1; y > -2; y--) {
+            for (let x = -1; x < 2; x++) {
+                const sphere = this.createSphere(sphereId++, x, y, color.gray);
+                this.spheres.push(sphere);
+                this.scene.add(sphere);
             }
         }
     }
@@ -160,24 +122,91 @@ class Board extends React.Component {
         return sphere;
     }
 
+    addLights() {
+        const ambientLight = new THREE.AmbientLight(color.gray);
+        this.scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(color.white, 0.5);
+        this.scene.add(directionalLight);
+    }
+
     isSphere(object) {
         return this.spheres.find(s => s === object);
     }
 
+    drawSpheres() {
+        for(let i=0; i<this.spheres.length; i++) {
+            switch (this.props.G.cells[i]) {
+                case '0':
+                    this.spheres[i].visible = true;
+                    this.spheres[i].material.color.setHex(color.red);
+                    break;
+                case '1':
+                    this.spheres[i].visible = true;
+                    this.spheres[i].material.color.setHex(color.blue);
+                    break;
+                default: this.spheres[i].visible = false;
+            }
+        }
+    }
+    
+    selectIntersected() {
+        this.raycaster.setFromCamera( this.mouse, this.camera );
+        const intersects = this.raycaster.intersectObjects( this.scene.children );
+        if ( intersects.length > 0 ) {
+            if ( this.intersectedObject !== intersects[ 0 ].object ) {
+                this.resetPreviousIntersected(this.intersectedObject);
+                this.intersectedObject = intersects[ 0 ].object;
+                if(this.isSphere(this.intersectedObject)) {
+                    if (this.isActive(this.intersectedObject.sphereId)) {
+                        this.props.moves.clickCell(this.intersectedObject.sphereId);
+                    }
+                }
+                this.intersectedObject.currentHex = this.intersectedObject.material.color.getHex();
+            }
+        } else {
+            this.resetPreviousIntersected(this.intersectedObject);
+            this.intersectedObject = null;
+        }
+    }
+
+    resetPreviousIntersected(intersectedObject) {
+        if (intersectedObject) {
+            intersectedObject.material.color.setHex(intersectedObject.currentHex);
+            if (this.isSphere(intersectedObject)) {
+                intersectedObject.visible = false;
+            }
+        }
+    }
+
+    addResizeListener() {
+        const updateDimensions = () => {
+            const width = 0.5 * window.innerWidth;
+            const height = 0.5 * window.innerWidth;
+            this.renderer.setSize(width, height);
+            this.setState({width: width, height: height});
+        };
+        window.addEventListener('resize', updateDimensions);
+    }
+
+    addOnClickListeners() {
+        const onClick = (event) => {
+            event.preventDefault();
+            if (event.clientX < this.state.width && event.clientY < this.state.height && this.props.playerID === '0') {
+                this.mouse.x = (event.clientX / this.state.width) * 2 - 1;
+                this.mouse.y = -(event.clientY / this.state.height) * 2 + 1;
+            } else if (event.clientX >= this.state.width && event.clientY < this.state.height && this.props.playerID === '1') {
+                this.mouse.x = ((event.clientX - this.state.width) / this.state.width) * 2 - 1;
+                this.mouse.y = -(event.clientY / this.state.height) * 2 + 1;
+            } else {
+                this.mouse.x = Number.MAX_VALUE;
+                this.mouse.y = Number.MAX_VALUE;
+            }
+        };
+        document.addEventListener('mousedown', onClick, false);
+        document.addEventListener('touchstart', onClick, false);
+    }
+
     render() {
-        /*let winner = null;
-        if (this.props.ctx.gameover) {
-            winner =
-                this.props.ctx.gameover.winner !== undefined ? (
-                    <div id="winner">Winner: {this.props.ctx.gameover.winner}</div>
-                ) : (
-                    <div id="winner">Draw!</div>
-                );
-        }*/
-
-        //const { width } = this.props.size;
-        //console.log('size at render: '+width);
-
         return (
             <div id={"webGLView" + this.props.playerID} style={{width: '100%',}}/>
         );
