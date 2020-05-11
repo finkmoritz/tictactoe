@@ -34,18 +34,6 @@ class Board extends React.Component {
         isMultiplayer: PropTypes.bool,
     };
 
-    onClick = id => {
-        if (this.isActive(id)) {
-            this.props.moves.clickCell(id);
-        }
-    };
-
-    isActive(id) {
-        if (!this.props.isActive) return false;
-        if (this.props.G.cells[id] !== null) return false;
-        return true;
-    }
-
     componentDidMount() {
         this.addResizeListener();
         this.addOnClickListeners();
@@ -157,7 +145,7 @@ class Board extends React.Component {
                 this.resetPreviousIntersected(this.intersectedObject);
                 this.intersectedObject = intersects[ 0 ].object;
                 if(this.isSphere(this.intersectedObject)) {
-                    if (this.isActive(this.intersectedObject.sphereId)) {
+                    if (this.props.isActive && this.props.G.cells[this.intersectedObject.sphereId] === null) {
                         this.props.moves.clickCell(this.intersectedObject.sphereId);
                     }
                 }
