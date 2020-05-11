@@ -15,13 +15,12 @@ import color from "../util/color";
 class Board extends React.Component {
     constructor(props) {
         super(props);
-        this.divRef = React.createRef();
         this.spheres = [];
         this.raycaster = new THREE.Raycaster();
-        this.mouse = new THREE.Vector2();
+        this.mouse = new THREE.Vector2(Number.MAX_VALUE, Number.MAX_VALUE);
         this.renderer = null;
         this.camera = null;
-        this.state = { width: window.innerWidth, height: 0.5*window.innerHeight };
+        this.state = { width: 0.5*window.innerWidth, height: 0.5*window.innerWidth };
     }
 
     static propTypes = {
@@ -32,8 +31,6 @@ class Board extends React.Component {
         isActive: PropTypes.bool,
         isMultiplayer: PropTypes.bool,
     };
-
-
 
     onClick = id => {
         if (this.isActive(id)) {
@@ -50,17 +47,13 @@ class Board extends React.Component {
     componentDidMount() {
         this.renderer = new THREE.WebGLRenderer();
 
-        /*const updateDimensions = () => {
-            const divElement = document.getElementById("webGLView"+this.props.playerID);
-            const width = divElement.offsetWidth;
-            const height = divElement.offsetHeight;
+        const updateDimensions = () => {
+            const width = 0.5*window.innerWidth;
+            const height = 0.5*window.innerWidth;
             this.renderer.setSize(width, height);
             this.setState({ width: width, height: height });
         };
-        window.addEventListener('resize', updateDimensions);*/
-
-        //this.setState({ width: 0.4*window.innerWidth, height: 0.4*window.innerHeight });
-        //console.log('width='+this.state.width);
+        window.addEventListener('resize', updateDimensions);
 
         const scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(50, this.state.width/this.state.height, 0.1, 1000);
@@ -73,9 +66,10 @@ class Board extends React.Component {
         gridHelper.geometry.rotateX(0.5*Math.PI);
         scene.add( gridHelper );
 
-        for(let y=-1; y<2; y++) {
+        let sphereId = 0;
+        for(let y=1; y>-2; y--) {
             for(let x=-1; x<2; x++) {
-                const sphere = this.createSphere(x, y, color.gray);
+                const sphere = this.createSphere(sphereId++, x, y, color.gray);
                 this.spheres.push(sphere);
                 scene.add(sphere);
             }
@@ -90,8 +84,16 @@ class Board extends React.Component {
 
         const onClick = ( event ) => {
             event.preventDefault();
-            this.mouse.x = ( event.clientX / this.state.width ) * 2 - 1;
-            this.mouse.y = - ( event.clientY / this.state.height ) * 2 + 1;
+            if(event.clientX < this.state.width && event.clientY < this.state.height && this.props.playerID === '0') {
+                this.mouse.x = ( event.clientX / this.state.width ) * 2 - 1;
+                this.mouse.y = - ( event.clientY / this.state.height ) * 2 + 1;
+            } else if(event.clientX >= this.state.width && event.clientY < this.state.height && this.props.playerID === '1') {
+                this.mouse.x = ( (event.clientX-this.state.width) / this.state.width ) * 2 - 1;
+                this.mouse.y = - ( event.clientY / this.state.height ) * 2 + 1;
+            } else {
+                this.mouse.x = Number.MAX_VALUE;
+                this.mouse.y = Number.MAX_VALUE;
+            }
         };
         document.addEventListener( 'mousedown', onClick, false );
         document.addEventListener( 'touchstart', onClick, false );
@@ -107,8 +109,10 @@ class Board extends React.Component {
                 if ( INTERSECTED !== intersects[ 0 ].object ) {
                     this.resetPreviousIntersected(INTERSECTED);
                     INTERSECTED = intersects[ 0 ].object;
-                    if(this.spheres.find(s => s === INTERSECTED)) {
-                        INTERSECTED.visible = true;
+                    if(this.isSphere(INTERSECTED)) {
+                        if (this.isActive(INTERSECTED.sphereId)) {
+                            this.props.moves.clickCell(INTERSECTED.sphereId);
+                        }
                     }
                     INTERSECTED.currentHex = INTERSECTED.material.color.getHex();
                 }
@@ -119,13 +123,15 @@ class Board extends React.Component {
 
             for(let i=0; i<this.spheres.length; i++) {
                 switch (this.props.G.cells[i]) {
-                    case 0:
+                    case '0':
+                        this.spheres[i].visible = true;
                         this.spheres[i].material.color.setHex(color.red);
                         break;
-                    case 1:
+                    case '1':
+                        this.spheres[i].visible = true;
                         this.spheres[i].material.color.setHex(color.blue);
                         break;
-                    default: this.spheres[i].material.color.setHex(color.gray);
+                    default: this.spheres[i].visible = false;
                 }
             }
 
@@ -137,34 +143,25 @@ class Board extends React.Component {
     resetPreviousIntersected(INTERSECTED) {
         if (INTERSECTED) {
             INTERSECTED.material.color.setHex(INTERSECTED.currentHex);
-            if (this.spheres.find(s => s === INTERSECTED)) {
+            if (this.isSphere(INTERSECTED)) {
                 INTERSECTED.visible = false;
             }
         }
     }
 
-    /*componentDidUpdate(prevProps, prevState, snapshot) {
-            const divElement = document.getElementById("webGLView"+this.props.playerID);
-            const width = divElement.offsetWidth;
-            console.log('width='+width);
-            const height = divElement.offsetHeight;
-            if(width !== prevState.width || height !== prevState.height) {
-                console.log('state changed: '+width);
-                this.renderer.setSize(width, height);
-                this.camera.aspect = width/height;
-                this.setState({ width: width, height: height });
-            }
-        }*/
-
-    createSphere(x, y, color) {
+    createSphere(id, x, y, color) {
         const geometry = new THREE.SphereBufferGeometry(0.4, 32, 32);
         const material = new THREE.MeshLambertMaterial({color: color});
         const sphere = new THREE.Mesh(geometry, material);
         sphere.translateX(x);
         sphere.translateY(y);
-        //sphere.translateZ(0.001);
         sphere.visible = false;
+        sphere.sphereId = id;
         return sphere;
+    }
+
+    isSphere(object) {
+        return this.spheres.find(s => s === object);
     }
 
     render() {
@@ -182,7 +179,7 @@ class Board extends React.Component {
         //console.log('size at render: '+width);
 
         return (
-            <div id={"webGLView" + this.props.playerID} ref={this.divRef} style={{width: '100%',}}/>
+            <div id={"webGLView" + this.props.playerID} style={{width: '100%',}}/>
         );
     }
 }
