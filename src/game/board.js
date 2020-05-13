@@ -22,6 +22,7 @@ class Board extends React.Component {
         this.scene = null;
         this.camera = null;
         this.renderer = null;
+        this.gameover = false;
         this.state = { width: 0.5*window.innerWidth, height: 0.5*window.innerWidth };
     }
 
@@ -44,6 +45,7 @@ class Board extends React.Component {
 
         this.addGrid();
         this.addSpheres();
+
         this.addLights();
 
         const animate = () => {
@@ -52,15 +54,7 @@ class Board extends React.Component {
             this.selectIntersected();
             this.drawSpheres();
 
-            /*let winner = null;
-            if (this.props.ctx.gameover) {
-                winner =
-                    this.props.ctx.gameover.winner !== undefined ? (
-                        <div id="winner">Winner: {this.props.ctx.gameover.winner}</div>
-                    ) : (
-                        <div id="winner">Draw!</div>
-                    );
-            }*/
+            this.computeWinner();
 
             this.renderer.render(this.scene, this.camera);
         }
@@ -136,6 +130,42 @@ class Board extends React.Component {
             }
         }
     }
+
+    addWinnerText(text, color) {
+        const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
+        canvas.width = 2000;
+        canvas.height = 2000;
+        ctx.fillStyle = color;
+        ctx.font = "200px Arial";
+        this.wrapText(ctx, text, 0, 0.1 * canvas.height, canvas.width, 250);
+        const texture = new THREE.CanvasTexture(canvas);
+        const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(1, 1, 1),
+            new THREE.MeshBasicMaterial({
+                map: texture
+            }));
+        this.scene.add(mesh);
+    }
+
+    wrapText(context, text, x, y, maxWidth, lineHeight) {
+        const words = text.split(' ');
+        let line = '';
+
+        for(let n = 0; n < words.length; n++) {
+            const testLine = line + words[n] + ' ';
+            const metrics = context.measureText(testLine);
+            const testWidth = metrics.width;
+            if (testWidth > maxWidth && n > 0) {
+                context.fillText(line, x, y);
+                line = words[n] + ' ';
+                y += lineHeight;
+            }
+            else {
+                line = testLine;
+            }
+        }
+        context.fillText(line, x, y);
+    }
     
     selectIntersected() {
         this.raycaster.setFromCamera( this.mouse, this.camera );
@@ -162,6 +192,18 @@ class Board extends React.Component {
             intersectedObject.material.color.setHex(intersectedObject.currentHex);
             if (this.isSphere(intersectedObject)) {
                 intersectedObject.visible = false;
+            }
+        }
+    }
+
+    computeWinner() {
+        if (!this.gameover && this.props.ctx.gameover) {
+            this.gameover = true;
+            const winner = this.props.ctx.gameover.winner;
+            if (winner) {
+                this.addWinnerText("Congratulations! Player " + winner + " wins the game!", winner === '0' ? 'red' : 'blue');
+            } else {
+                this.addWinnerText("Draw", 'green');
             }
         }
     }
